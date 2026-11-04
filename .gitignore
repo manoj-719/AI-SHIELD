@@ -10,3 +10,8 @@ dist/
 *.sqlite3
 ml/model/*.pkl
 .vscode/
+# AI Shield generated security data
+quarantine/*
+!quarantine/.gitkeep
+test_data/*
+!test_data/.gitkeep
