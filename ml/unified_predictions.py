@@ -2,20 +2,15 @@
 import json
 from pathlib import Path
 
-# ==========================================
-# 1. PROJECT PATHS
-# ==========================================
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 EMPLOYEE_FILE = PROJECT_ROOT / "ml" / "predictions.jsonl"
 API_FILE = PROJECT_ROOT / "ml" / "api_predictions.jsonl"
-
 OUTPUT_FILE = PROJECT_ROOT / "ml" / "unified_predictions.jsonl"
 
 
 # ==========================================
-# 2. LOAD PREDICTIONS
+# 1. LOAD PREDICTIONS
 # ==========================================
 
 def load_predictions(file_path):
@@ -40,10 +35,12 @@ def load_predictions(file_path):
 
 
 # ==========================================
-# 3. NORMALIZE EMPLOYEE PREDICTIONS
+# 2. NORMALIZE EMPLOYEE PREDICTIONS
 # ==========================================
 
 def normalize_employee(item, index):
+    isolation_forest = item.get("isolation_forest") or {}
+
     return {
         "incident_id": f"EMP-{index:05d}",
         "source": "employee",
@@ -57,13 +54,17 @@ def normalize_employee(item, index):
         "recommended_action": item.get("recommended_action"),
         "timestamp": item.get("timestamp"),
         "details": {
-            "anomaly_score": item.get("anomaly_score")
+            "primary_model": item.get("model"),
+            "random_forest_score": item.get("risk_score"),
+            "isolation_forest": isolation_forest,
+            "models_agree": item.get("models_agree"),
+            "anomaly_score": isolation_forest.get("anomaly_score")
         }
     }
 
 
 # ==========================================
-# 4. NORMALIZE API PREDICTIONS
+# 3. NORMALIZE API PREDICTIONS
 # ==========================================
 
 def normalize_api(item, index):
@@ -90,7 +91,7 @@ def normalize_api(item, index):
 
 
 # ==========================================
-# 5. COMBINE EMPLOYEE AND API PREDICTIONS
+# 4. COMBINE EMPLOYEE AND API PREDICTIONS
 # ==========================================
 
 def create_unified_predictions():
@@ -114,7 +115,7 @@ def create_unified_predictions():
 
 
 # ==========================================
-# 6. SAVE UNIFIED PREDICTIONS
+# 5. SAVE UNIFIED PREDICTIONS
 # ==========================================
 
 def save_predictions(predictions):
@@ -124,7 +125,7 @@ def save_predictions(predictions):
 
 
 # ==========================================
-# 7. GENERATE SECURITY SUMMARY
+# 6. GENERATE SECURITY SUMMARY
 # ==========================================
 
 def generate_summary(predictions):
@@ -179,11 +180,10 @@ def generate_summary(predictions):
 
 
 # ==========================================
-# 8. MAIN EXECUTION
+# 7. MAIN EXECUTION
 # ==========================================
 
 if __name__ == "__main__":
-
     print("Starting unified threat pipeline...")
 
     unified_predictions = create_unified_predictions()

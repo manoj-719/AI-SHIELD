@@ -1,19 +1,19 @@
+
 import joblib
+import numpy as np
 import pandas as pd
 from pathlib import Path
 
-# Locate saved model files
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODEL_DIR = PROJECT_ROOT / "ml" / "saved_model"
 
 MODEL_PATH = MODEL_DIR / "isolation_forest.pkl"
 THRESHOLD_PATH = MODEL_DIR / "anomaly_threshold.txt"
 
-# Load trained model and threshold
 model = joblib.load(MODEL_PATH)
 
-with open(THRESHOLD_PATH, "r") as file:
-    threshold = float(file.read().strip())
+with open(THRESHOLD_PATH, "r", encoding="utf-8") as file:
+    THRESHOLD = float(file.read().strip())
 
 
 def predict_event(event_features):
@@ -33,25 +33,19 @@ def predict_event(event_features):
         "sensitive_accesses_24h"
     ]
 
-    # Check whether all required features are present
     missing = set(required_features) - set(event_features)
 
     if missing:
-        raise ValueError(f"Missing features: {missing}")
+        raise ValueError(f"Missing features: {sorted(missing)}")
 
-    # Arrange features in the same order used during training
     input_data = pd.DataFrame(
         [[event_features[name] for name in required_features]],
         columns=required_features
     )
 
-    # Generate anomaly score
-    anomaly_score = model.score_samples(input_data)[0]
+    anomaly_score = float(model.score_samples(input_data)[0])
+    is_suspicious = anomaly_score < THRESHOLD
 
-    # Lower scores indicate more anomalous activity
-    is_suspicious = anomaly_score < threshold
-
-    # Rule-based risk level
     if not is_suspicious:
         risk_level = "Low"
         action = "Allow activity"
@@ -63,10 +57,15 @@ def predict_event(event_features):
         action = "Flag activity for security review"
 
     return {
-        "anomaly_score": round(float(anomaly_score), 4),
+        "risk_score": round(
+            float(np.clip(1 - model.decision_function(input_data)[0], 0, 1)),
+            4
+        ),
+        "anomaly_score": round(anomaly_score, 6),
         "prediction": "Suspicious" if is_suspicious else "Normal",
         "risk_level": risk_level,
-        "recommended_action": action
+        "recommended_action": action,
+        "model": "Isolation Forest"
     }
 
 
@@ -87,11 +86,4 @@ if __name__ == "__main__":
         "sensitive_accesses_24h": 7
     }
 
-    result = predict_event(sample_event)
-
-    print("\n========== AI SHIELD THREAT DETECTION ==========")
-
-    for key, value in result.items():
-        print(f"{key}: {value}")
-
-    print("================================================")
+    print(predict_event(sample_event))
