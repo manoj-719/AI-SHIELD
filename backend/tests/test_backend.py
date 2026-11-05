@@ -113,6 +113,7 @@ class AIShieldSupabaseBackendTestCase(unittest.TestCase):
                     self._count = len(self.items)
                     self.store_ref = store_ref
                     self._pending_insert = None
+                    self._pending_update = None
 
                 def select(self, *args, **kwargs):
                     return self
@@ -162,11 +163,30 @@ class AIShieldSupabaseBackendTestCase(unittest.TestCase):
                 def upsert(self, payload, on_conflict=None):
                     return self.insert(payload)
 
+                def update(self, payload):
+                    self._pending_update = dict(payload)
+                    return self
+
                 def execute(self):
                     res = MagicMock()
                     if self._pending_insert is not None:
                         res.data = self._pending_insert
                         res.count = len(self._pending_insert)
+                    elif self._pending_update is not None:
+                        updated = []
+                        for item in self.items:
+                            item.update(self._pending_update)
+                            for stored in self.store_ref:
+                                match = False
+                                for key in ("id", "incident_id", "alert_id", "event_id", "employee_id"):
+                                    if key in item and key in stored and item[key] == stored[key]:
+                                        match = True
+                                        break
+                                if match:
+                                    stored.update(self._pending_update)
+                            updated.append(dict(item))
+                        res.data = updated
+                        res.count = len(updated)
                     else:
                         res.data = self.items
                         res.count = self._count
@@ -177,6 +197,7 @@ class AIShieldSupabaseBackendTestCase(unittest.TestCase):
             table_mock.select = builder.select
             table_mock.insert = builder.insert
             table_mock.upsert = builder.upsert
+            table_mock.update = builder.update
             return table_mock
 
         mock_client.table.side_effect = table_side_effect
@@ -339,6 +360,42 @@ class AIShieldSupabaseBackendTestCase(unittest.TestCase):
         res = response.get_json()
         self.assertEqual(res["data"]["incident_id"], "INC099")
 
+    def test_update_incident_status_success(self):
+        # Update status to investigating
+        response = self.client.patch("/api/incidents/INC001", json={"status": "investigating"})
+        self.assertEqual(response.status_code, 200)
+        res = response.get_json()
+        self.assertTrue(res["success"])
+        self.assertEqual(res["data"]["status"], "investigating")
+        self.assertIn("updated_at", res["data"])
+
+        # Update status to resolved
+        response2 = self.client.patch("/api/incidents/INC001", json={"status": "resolved"})
+        self.assertEqual(response2.status_code, 200)
+        res2 = response2.get_json()
+        self.assertEqual(res2["data"]["status"], "resolved")
+        self.assertIsNotNone(res2["data"]["resolved_at"])
+
+    def test_update_incident_status_invalid(self):
+        response = self.client.patch("/api/incidents/INC001", json={"status": "invalid_status"})
+        self.assertEqual(response.status_code, 400)
+        res = response.get_json()
+        self.assertFalse(res["success"])
+        self.assertIn("Invalid status", res["error"])
+
+    def test_update_incident_not_found(self):
+        response = self.client.patch("/api/incidents/INC_NONEXISTENT", json={"status": "investigating"})
+        self.assertEqual(response.status_code, 404)
+        res = response.get_json()
+        self.assertFalse(res["success"])
+        self.assertIn("not found", res["error"])
+
+    def test_update_incident_invalid_payload(self):
+        response = self.client.patch("/api/incidents/INC001", json={})
+        self.assertEqual(response.status_code, 400)
+        res = response.get_json()
+        self.assertFalse(res["success"])
+
     # 5. Alerts API Tests
     def test_get_alerts_list(self):
         response = self.client.get("/api/alerts")
@@ -346,6 +403,46 @@ class AIShieldSupabaseBackendTestCase(unittest.TestCase):
         res = response.get_json()
         self.assertTrue(res["success"])
         self.assertEqual(len(res["data"]), 1)
+
+    def test_update_alert_mark_read(self):
+        response = self.client.patch("/api/alerts/ALT001", json={"is_read": True})
+        self.assertEqual(response.status_code, 200)
+        res = response.get_json()
+        self.assertTrue(res["success"])
+        self.assertTrue(res["data"]["is_read"])
+
+    def test_update_alert_mark_unread(self):
+        # Set to True first
+        self.client.patch("/api/alerts/ALT001", json={"is_read": True})
+        # Mark unread
+        response = self.client.patch("/api/alerts/ALT001", json={"is_read": False})
+        self.assertEqual(response.status_code, 200)
+        res = response.get_json()
+        self.assertTrue(res["success"])
+        self.assertFalse(res["data"]["is_read"])
+
+    def test_update_alert_invalid_is_read(self):
+        # String instead of boolean
+        res1 = self.client.patch("/api/alerts/ALT001", json={"is_read": "true"})
+        self.assertEqual(res1.status_code, 400)
+        self.assertIn("must be a boolean", res1.get_json()["error"])
+
+        # Integer instead of boolean
+        res2 = self.client.patch("/api/alerts/ALT001", json={"is_read": 1})
+        self.assertEqual(res2.status_code, 400)
+        self.assertIn("must be a boolean", res2.get_json()["error"])
+
+        # Missing field
+        res3 = self.client.patch("/api/alerts/ALT001", json={})
+        self.assertEqual(res3.status_code, 400)
+        self.assertIn("Missing required field", res3.get_json()["error"])
+
+    def test_update_alert_not_found(self):
+        response = self.client.patch("/api/alerts/ALT_NONEXISTENT", json={"is_read": True})
+        self.assertEqual(response.status_code, 404)
+        res = response.get_json()
+        self.assertFalse(res["success"])
+        self.assertIn("not found", res["error"])
 
     # 6. Global 404 Error Handler
     def test_not_found_endpoint(self):

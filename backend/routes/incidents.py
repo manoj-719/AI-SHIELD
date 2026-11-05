@@ -146,3 +146,67 @@ def create_incident():
         if "23505" in err_str or "duplicate key" in err_str:
             return error_response("Duplicate incident ID conflict", 409, details=err_str)
         return error_response("Failed to create incident", 500, details=err_str)
+
+@incidents_bp.route("/api/incidents/<incident_id>", methods=["PATCH"])
+def update_incident(incident_id):
+    """
+    Update an existing security incident's status or assigned_to in Supabase PostgreSQL.
+    Supported statuses: open, investigating, resolved, closed.
+    """
+    if not request.is_json:
+        return error_response("Request body must be JSON with Content-Type: application/json", 400)
+
+    data = request.get_json()
+    if not isinstance(data, dict):
+        return error_response("Payload must be a JSON object", 400)
+
+    if not data:
+        return error_response("Request body cannot be empty", 400)
+
+    update_payload = {}
+
+    # Validate status if provided
+    if "status" in data:
+        status_val = data.get("status")
+        if not isinstance(status_val, str) or not status_val.strip():
+            return error_response("Field 'status' must be a non-empty string", 400)
+        status = status_val.strip().lower()
+        if status not in VALID_INCIDENT_STATUSES:
+            return error_response(
+                f"Invalid status '{status}'. Must be one of: {sorted(list(VALID_INCIDENT_STATUSES))}",
+                400
+            )
+        update_payload["status"] = status
+        now_iso = get_current_iso_timestamp()
+        update_payload["updated_at"] = now_iso
+        if status in ("resolved", "closed"):
+            update_payload["resolved_at"] = now_iso
+        elif status in ("open", "investigating"):
+            update_payload["resolved_at"] = None
+
+    # Validate assigned_to if provided
+    if "assigned_to" in data:
+        assigned_val = data.get("assigned_to")
+        update_payload["assigned_to"] = str(assigned_val).strip() if assigned_val else None
+        if "updated_at" not in update_payload:
+            update_payload["updated_at"] = get_current_iso_timestamp()
+
+    if not update_payload:
+        return error_response(
+            "No updatable fields provided. Supported fields: 'status', 'assigned_to'",
+            400
+        )
+
+    try:
+        supabase = get_supabase_client()
+        update_res = supabase.table("security_incidents").update(update_payload).eq("incident_id", incident_id).execute()
+        if not update_res.data:
+            return error_response(f"Incident with ID '{incident_id}' not found", 404)
+
+        updated_incident = update_res.data[0]
+        return api_response(data=updated_incident, message="Incident updated successfully", status_code=200)
+
+    except RuntimeError as re:
+        return error_response("Database configuration error", 503, details=str(re))
+    except Exception as e:
+        return error_response("Failed to update incident", 500, details=str(e))

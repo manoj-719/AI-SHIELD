@@ -20,6 +20,27 @@ from backend.pipeline.ml_adapter import get_ml_adapter
 from backend.pipeline.risk_engine import calculate_composite_risk
 from backend.pipeline.incident_generator import evaluate_and_generate_alerts
 
+# Schema columns explicitly permitted in public.security_events
+DB_EVENT_COLUMNS = {
+    "event_id",
+    "event_type",
+    "actor_type",
+    "actor_id",
+    "resource",
+    "is_sensitive",
+    "action",
+    "destination",
+    "timestamp",
+    "source",
+    "description",
+    "rule_result",
+    "anomaly",
+    "risk_score",
+    "risk_level",
+    "recommended_action",
+    "created_at",
+}
+
 def process_security_event(raw_payload: Dict[str, Any], client=None) -> Tuple[bool, Any, int]:
     """
     Execute the central event processing pipeline for an incoming event.
@@ -58,8 +79,9 @@ def process_security_event(raw_payload: Dict[str, Any], client=None) -> Tuple[bo
         cleaned["risk_level"] = risk_assessment["risk_level"]
         cleaned["recommended_action"] = risk_assessment["recommended_action"]
 
-        # STEP 6: STORE ENRICHED EVENT IN SUPABASE
-        insert_res = supabase.table("security_events").insert(cleaned).execute()
+        # STEP 6: STORE ENRICHED EVENT IN SUPABASE (STRIPPING AUXILIARY ML FEATURES)
+        db_record = {k: v for k, v in cleaned.items() if k in DB_EVENT_COLUMNS}
+        insert_res = supabase.table("security_events").insert(db_record).execute()
         saved_event = insert_res.data[0] if insert_res.data else cleaned
 
         # STEP 7: AUTOMATIC INCIDENTS AND ALERTS (DEDUPLICATED)

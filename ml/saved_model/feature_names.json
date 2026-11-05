@@ -1,0 +1,14 @@
+[
+    "is_sensitive",
+    "is_read",
+    "is_download",
+    "is_share",
+    "is_external",
+    "hour",
+    "day_of_week",
+    "is_weekend",
+    "employee_activities_24h",
+    "downloads_24h",
+    "external_activities_24h",
+    "sensitive_accesses_24h"
+]

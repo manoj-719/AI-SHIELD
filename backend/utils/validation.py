@@ -184,4 +184,25 @@ def validate_event_payload(data):
         "recommended_action": recommended_action,
         "created_at": get_current_iso_timestamp()
     }
+
+    # Auxiliary ML & simulation features (forwarded to ML anomaly adapters)
+    if "is_authorized" in data and data["is_authorized"] is not None:
+        cleaned["is_authorized"] = bool(data["is_authorized"])
+
+    aux_int_fields = [
+        "status_code",
+        "request_count_60s",
+        "denied_count_60s",
+        "employee_activities_24h",
+        "downloads_24h",
+        "sensitive_accesses_24h",
+        "external_activities_24h"
+    ]
+    for field in aux_int_fields:
+        if field in data and data[field] is not None:
+            try:
+                cleaned[field] = int(data[field])
+            except (ValueError, TypeError):
+                cleaned[field] = data[field]
+
     return True, None, cleaned

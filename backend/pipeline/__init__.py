@@ -5,6 +5,7 @@ AI Shield - Event Processing Pipeline Package.
 from backend.pipeline.event_processor import process_security_event
 from backend.pipeline.security_adapter import (
     SecurityRuleResult,
+    ManojSecurityEngineAdapter,
     MockSecurityRuleAdapter,
     get_security_adapter,
     set_security_adapter,
@@ -12,6 +13,7 @@ from backend.pipeline.security_adapter import (
 )
 from backend.pipeline.ml_adapter import (
     MLAnomalyResult,
+    VishnuIsolationForestAdapter,
     MockMLAnomalyAdapter,
     get_ml_adapter,
     set_ml_adapter,
@@ -29,11 +31,13 @@ from backend.pipeline.incident_generator import (
 __all__ = [
     "process_security_event",
     "SecurityRuleResult",
+    "ManojSecurityEngineAdapter",
     "MockSecurityRuleAdapter",
     "get_security_adapter",
     "set_security_adapter",
     "reset_security_adapter",
     "MLAnomalyResult",
+    "VishnuIsolationForestAdapter",
     "MockMLAnomalyAdapter",
     "get_ml_adapter",
     "set_ml_adapter",

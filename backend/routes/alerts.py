@@ -104,3 +104,36 @@ def create_alert():
         if "23505" in err_str or "duplicate key" in err_str:
             return error_response("Duplicate alert ID conflict", 409, details=err_str)
         return error_response("Failed to create alert", 500, details=err_str)
+
+@alerts_bp.route("/api/alerts/<alert_id>", methods=["PATCH"])
+def update_alert(alert_id):
+    """
+    Update an existing alert's read status (is_read) in Supabase PostgreSQL.
+    """
+    if not request.is_json:
+        return error_response("Request body must be JSON with Content-Type: application/json", 400)
+
+    data = request.get_json()
+    if not isinstance(data, dict):
+        return error_response("Payload must be a JSON object", 400)
+
+    if "is_read" not in data:
+        return error_response("Missing required field: 'is_read'", 400)
+
+    is_read = data.get("is_read")
+    if not isinstance(is_read, bool):
+        return error_response("Field 'is_read' must be a boolean (true or false)", 400)
+
+    try:
+        supabase = get_supabase_client()
+        update_res = supabase.table("alerts").update({"is_read": is_read}).eq("alert_id", alert_id).execute()
+        if not update_res.data:
+            return error_response(f"Alert with ID '{alert_id}' not found", 404)
+
+        updated_alert = update_res.data[0]
+        return api_response(data=updated_alert, message="Alert updated successfully", status_code=200)
+
+    except RuntimeError as re:
+        return error_response("Database configuration error", 503, details=str(re))
+    except Exception as e:
+        return error_response("Failed to update alert", 500, details=str(e))
