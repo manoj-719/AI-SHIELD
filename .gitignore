@@ -10,8 +10,21 @@ dist/
 *.sqlite3
 ml/model/*.pkl
 .vscode/
+
 # AI Shield generated security data
 quarantine/*
 !quarantine/.gitkeep
 test_data/*
 !test_data/.gitkeep
+
+# Allow backend example environment file
+!backend/.env.example
+<<<<<<< HEAD
+# AI Shield generated security data
+quarantine/*
+!quarantine/.gitkeep
+test_data/*
+!test_data/.gitkeep
+=======
+!backend/.env.example
+>>>>>>> origin/Teja

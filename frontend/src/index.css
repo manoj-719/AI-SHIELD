@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+:root {
+  font-family: Inter, Geist, system-ui, sans-serif;
+  color: #f4eff0;
+  background: #070708;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  font-smooth: always;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 72% 0%, rgba(229, 43, 53, 0.055), transparent 36%),
+    #070708;
+}
+
+button, input, select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: rgba(229, 43, 53, 0.45);
+  color: #ffffff;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #492126;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #e52b35;
+}
+
+.panel {
+  background: linear-gradient(145deg, rgba(18, 18, 21, 0.98), rgba(12, 12, 14, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 15px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.panel:hover {
+  border-color: rgba(229, 43, 53, 0.22);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.22), 0 0 24px rgba(229, 43, 53, 0.035);
+}
+
+.muted {
+  color: #aaa0a2;
+}
+
+.accent {
+  color: #ff3545;
+}
